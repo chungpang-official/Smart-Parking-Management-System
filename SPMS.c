@@ -47,7 +47,7 @@ void addBooking(char member[], char date[], char time[], float duration, int par
 }
 
 // Function to handle batch file input
-void importBatch(char filename[]) {
+void addBatch(char filename[]) {
     // Remove the leading '-' and trailing ';' from the filename
     if (filename[0] == '-') {
         memmove(filename, filename + 1, strlen(filename));
@@ -212,9 +212,9 @@ void processCommand(char command[]) {
         } else if (strcmp(cmd, "bookEssentials") == 0) {
             sscanf(command, "%*s -%s %s %s %f %s", member, date, time, &duration, essentials[0]);
             addBooking(member, date, time, duration, 0, essentials, "Essentials", 0, 1);
-        } else if (strcmp(cmd, "importBatch") == 0) {
+        } else if (strcmp(cmd, "addBatch") == 0) {
             sscanf(command, "%*s -%s", filename);
-            importBatch(filename);
+            addBatch(filename);
         } else if (strcmp(cmd, "printBookings") == 0) {
             sscanf(command, "%*s -%s", algorithm);
             printBookings(algorithm);
