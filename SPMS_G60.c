@@ -215,9 +215,11 @@ void sortByFCFS() {
 }
 
 void sortByPriority() {
-    // Step 1: Sort bookings by priority in descending order
-    for (int i = 0; i < totalBookings - 1; i++) {
-        for (int j = 0; j < totalBookings - i - 1; j++) {
+    int i, j; // Declare loop variables outside
+
+    // Sort by priority (descending)
+    for (i = 0; i < totalBookings - 1; i++) {
+        for (j = 0; j < totalBookings - i - 1; j++) {
             if (bookings[j].priority < bookings[j + 1].priority) {
                 Booking temp = bookings[j];
                 bookings[j] = bookings[j + 1];
@@ -226,7 +228,7 @@ void sortByPriority() {
         }
     }
 
-    // Step 2: Reset resources to initial state
+    // Reset resources
     resources.battery = MAX_RESOURCES;
     resources.cable = MAX_RESOURCES;
     resources.locker = MAX_RESOURCES;
@@ -234,191 +236,134 @@ void sortByPriority() {
     resources.inflation = MAX_RESOURCES;
     resources.valet = MAX_RESOURCES;
 
-    // Step 3: Process bookings in priority order, rejecting conflicts
-    for (int i = 0; i < totalBookings; i++) {
-        bookings[i].status = 1; // Initially assume accepted
+    // Initially mark all as accepted
+    for (i = 0; i < totalBookings; i++) {
+        bookings[i].status = 1;
     }
 
-    for (int i = 0; i < totalBookings; i++) {
-        if (bookings[i].status == 0) continue; // Skip already rejected bookings
+    // Process each booking in priority order
+    for (i = 0; i < totalBookings; i++) {
+        if (bookings[i].status == 0) continue;
 
         // Check resource availability
         if (!checkResources(bookings[i].essentials, 1)) {
             bookings[i].status = 0;
+            releaseResources(bookings[i].essentials);
             continue;
         }
 
-        // Check for slot conflicts with previously accepted bookings
-        int iHour, iMinute;
-        sscanf(bookings[i].time, "%d:%d", &iHour, &iMinute);
-        int iStart = iHour * 60 + iMinute;
-        int iEnd = iStart + (int)(bookings[i].duration * 60);
+        // Check conflicts with higher priority
+        int conflict = 0;
+        for (j = 0; j < i; j++) {
+            if (bookings[j].status == 0) continue;
+            if (strcmp(bookings[i].date, bookings[j].date) != 0) continue;
+            if (bookings[i].parkingSlot != bookings[j].parkingSlot) continue;
 
-        for (int j = 0; j < i; j++) {
-            if (bookings[j].status == 0) continue; // Skip rejected bookings
-            if (strcmp(bookings[i].date, bookings[j].date) == 0 &&
-                bookings[i].parkingSlot == bookings[j].parkingSlot &&
-                bookings[i].parkingSlot != -1) { // Check slot conflict
-                int jHour, jMinute;
-                sscanf(bookings[j].time, "%d:%d", &jHour, &jMinute);
-                int jStart = jHour * 60 + jMinute;
-                int jEnd = jStart + (int)(bookings[j].duration * 60);
+            // Calculate time slots
+            int iHour, iMinute, jHour, jMinute;
+            sscanf(bookings[i].time, "%d:%d", &iHour, &iMinute);
+            sscanf(bookings[j].time, "%d:%d", &jHour, &jMinute);
+            int iStart = iHour * 60 + iMinute;
+            int iEnd = iStart + (int)(bookings[i].duration * 60);
+            int jStart = jHour * 60 + jMinute;
+            int jEnd = jStart + (int)(bookings[j].duration * 60);
 
-                if (iStart < jEnd && iEnd > jStart) {
-                    // Conflict found, reject the lower-priority booking (which is j, since i has higher priority)
-                    bookings[j].status = 0;
-                    releaseResources(bookings[j].essentials);
-                }
+            if (iStart < jEnd && iEnd > jStart) {
+                bookings[i].status = 0;
+                releaseResources(bookings[i].essentials);
+                conflict = 1;
+                break;
             }
         }
+        if (conflict) continue;
 
-        // Re-check conflicts after rejecting a booking
-        for (int j = i + 1; j < totalBookings; j++) {
+        // Check and reject lower priority conflicts
+        for (j = i + 1; j < totalBookings; j++) {
             if (bookings[j].status == 0) continue;
-            if (strcmp(bookings[i].date, bookings[j].date) == 0 &&
-                bookings[i].parkingSlot == bookings[j].parkingSlot &&
-                bookings[i].parkingSlot != -1) {
-                int jHour, jMinute;
-                sscanf(bookings[j].time, "%d:%d", &jHour, &jMinute);
-                int jStart = jHour * 60 + jMinute;
-                int jEnd = jStart + (int)(bookings[j].duration * 60);
+            if (strcmp(bookings[i].date, bookings[j].date) != 0) continue;
+            if (bookings[i].parkingSlot != bookings[j].parkingSlot) continue;
 
-                if (iStart < jEnd && iEnd > jStart) {
-                    bookings[j].status = 0;
-                    releaseResources(bookings[j].essentials);
-                }
+            // Calculate time slots
+            int iHour, iMinute, jHour, jMinute;
+            sscanf(bookings[i].time, "%d:%d", &iHour, &iMinute);
+            sscanf(bookings[j].time, "%d:%d", &jHour, &jMinute);
+            int iStart = iHour * 60 + iMinute;
+            int iEnd = iStart + (int)(bookings[i].duration * 60);
+            int jStart = jHour * 60 + jMinute;
+            int jEnd = jStart + (int)(bookings[j].duration * 60);
+
+            if (iStart < jEnd && iEnd > jStart) {
+                bookings[j].status = 0;
+                releaseResources(bookings[j].essentials);
             }
         }
     }
 }
 
 void sortByOptimized() {
-    sortByFCFS();
+    sortByFCFS(); // Assume FCFS order
 
     for (int i = 0; i < totalBookings; i++) {
-        if (bookings[i].status == 1) continue;
+        if (bookings[i].status == 1) continue; // Skip accepted
 
-        int year, month, day, hour, minute;
-        sscanf(bookings[i].date, "%d-%d-%d", &year, &month, &day);
-        sscanf(bookings[i].time, "%d:%d", &hour, &minute);
+        int originalStatus = bookings[i].status;
+        char originalDate[11], originalTime[6];
+        strcpy(originalDate, bookings[i].date);
+        strcpy(originalTime, bookings[i].time);
 
-        int startMinutes = hour * 60 + minute;
-        int durationMinutes = (int)(bookings[i].duration * 60);
-        int endMinutes = startMinutes + durationMinutes;
+        // Try rescheduling on the same day
+        int rescheduled = 0;
+        int hour, minute;
+        sscanf(originalTime, "%d:%d", &hour, &minute);
+        float duration = bookings[i].duration;
 
-        resources.battery = MAX_RESOURCES;
-        resources.cable = MAX_RESOURCES;
-        resources.locker = MAX_RESOURCES;
-        resources.umbrella = MAX_RESOURCES;
-        resources.inflation = MAX_RESOURCES;
-        resources.valet = MAX_RESOURCES;
+        for (int newHour = hour; newHour <= 20; newHour++) {
+            for (int newMinute = 0; newMinute < 60; newMinute += 60) { // Check hourly slots
+                if (newHour == hour && newMinute < minute) continue;
 
-        for (int j = 0; j < totalBookings; j++) {
-            if (j != i && bookings[j].status == 1) {
-                checkResources(bookings[j].essentials, 1);
-            }
-        }
+                // Check if new time exceeds 20:00
+                if (newHour + duration > 20) continue;
 
-        int found = 0;
-        for (int h = hour; h <= 20; h++) {
-            int m = (h == hour) ? minute : 0;
-            for (; m < 60; m += 60) {
-                int newStart = h * 60 + m;
-                int newEnd = newStart + durationMinutes;
+                // Temporarily update booking time
+                sprintf(bookings[i].time, "%02d:%02d", newHour, newMinute);
 
-                if (newEnd > 20 * 60) continue;
-
+                // Check for conflicts and resources
                 int conflict = 0;
                 for (int j = 0; j < totalBookings; j++) {
-                    if (j == i || bookings[j].status == 0) continue;
+                    if (j == i || bookings[j].status != 1) continue;
                     if (strcmp(bookings[i].date, bookings[j].date) != 0) continue;
                     if (bookings[i].parkingSlot != bookings[j].parkingSlot) continue;
 
-                    int jHour, jMinute;
-                    sscanf(bookings[j].time, "%d:%d", &jHour, &jMinute);
-                    int jStart = jHour * 60 + jMinute;
-                    int jEnd = jStart + (int)(bookings[j].duration * 60);
+                    // Time conflict check
+                    int iStart = newHour * 60 + newMinute;
+                    int iEnd = iStart + (int)(duration * 60);
+                    int jStart, jEnd;
+                    sscanf(bookings[j].time, "%d:%d", &jStart, &jEnd);
+                    jStart = (jStart / 100) * 60 + (jStart % 100);
+                    jEnd = jStart + (int)(bookings[j].duration * 60);
 
-                    if (newStart < jEnd && newEnd > jStart) {
+                    if (iStart < jEnd && iEnd > jStart) {
                         conflict = 1;
                         break;
                     }
                 }
 
-                if (!conflict && checkResources(bookings[i].essentials, 1)) {
-                    sprintf(bookings[i].time, "%02d:%02d", h, m);
+                if (!conflict && checkResources(bookings[i].essentials, 0)) {
+                    // Allocate resources and accept
+                    checkResources(bookings[i].essentials, 1);
                     bookings[i].status = 1;
-                    found = 1;
-                    printf("Rescheduled %s to %s %s, status: %d\n", 
-                          bookings[i].member, bookings[i].date, bookings[i].time, bookings[i].status);
+                    rescheduled = 1;
                     break;
                 }
             }
-            if (found) break;
+            if (rescheduled) break;
         }
 
-        if (!found) {
-            int nextDay = day;
-            int nextMonth = month;
-            int nextYear = year;
-
-            while (nextDay < 16) {
-                nextDay++;
-                if (nextDay > 16) break;
-
-                for (int h = 8; h <= 20; h++) {
-                    for (int m = 0; m < 60; m += 60) {
-                        int newStart = h * 60 + m;
-                        int newEnd = newStart + durationMinutes;
-
-                        if (newEnd > 20 * 60) continue;
-
-                        resources.battery = MAX_RESOURCES;
-                        resources.cable = MAX_RESOURCES;
-                        resources.locker = MAX_RESOURCES;
-                        resources.umbrella = MAX_RESOURCES;
-                        resources.inflation = MAX_RESOURCES;
-                        resources.valet = MAX_RESOURCES;
-
-                        for (int j = 0; j < totalBookings; j++) {
-                            if (j != i && bookings[j].status == 1) {
-                                checkResources(bookings[j].essentials, 1);
-                            }
-                        }
-
-                        int conflict = 0;
-                        for (int j = 0; j < totalBookings; j++) {
-                            if (j == i || bookings[j].status == 0) continue;
-                            int jYear, jMonth, jDay;
-                            sscanf(bookings[j].date, "%d-%d-%d", &jYear, &jMonth, &jDay);
-                            if (jYear != nextYear || jMonth != nextMonth || jDay != nextDay) continue;
-                            if (bookings[i].parkingSlot != bookings[j].parkingSlot) continue;
-
-                            int jHour, jMinute;
-                            sscanf(bookings[j].time, "%d:%d", &jHour, &jMinute);
-                            int jStart = jHour * 60 + jMinute;
-                            int jEnd = jStart + (int)(bookings[j].duration * 60);
-
-                            if (newStart < jEnd && newEnd > jStart) {
-                                conflict = 1;
-                                break;
-                            }
-                        }
-
-                        if (!conflict && checkResources(bookings[i].essentials, 1)) {
-                            sprintf(bookings[i].date, "%04d-%02d-%02d", nextYear, nextMonth, nextDay);
-                            sprintf(bookings[i].time, "%02d:%02d", h, m);
-                            bookings[i].status = 1;
-                            found = 1;
-                            printf("Rescheduled %s to %s %s, status: %d\n", 
-                                  bookings[i].member, bookings[i].date, bookings[i].time, bookings[i].status);
-                            break;
-                        }
-                    }
-                    if (found) break;
-                }
-                if (found) break;
-            }
+        if (!rescheduled) {
+            // Restore original time if not rescheduled
+            strcpy(bookings[i].date, originalDate);
+            strcpy(bookings[i].time, originalTime);
+            bookings[i].status = originalStatus;
         }
     }
 }
