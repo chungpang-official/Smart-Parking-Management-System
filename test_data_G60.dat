@@ -1,0 +1,10 @@
+addParking -member_A 2025-05-10 09:00 2.0 1 battery cable;
+addReservation -member_B 2025-05-10 09:00 3.0 2 locker umbrella;
+addEvent -member_C 2025-05-10 10:00 1.5 3 inflation valet;
+addParking -member_D 2025-05-10 08:00 4.0 -1 battery;
+addParking -member_E 2025-05-10 09:30 2.5 1;
+addEvent -member_F 2025-05-10 09:30 1.0 1;
+addReservation -member_G 2025-05-17 08:00 2.0 4;
+addParking -member_H 2025-05-10 21:00 1.0 5;
+addReservation -member_I 2025-05-11 14:00 2.0 4 battery locker;
+addParking -member_J 2025-05-12 08:00 8.0 6;
